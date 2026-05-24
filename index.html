@@ -2,6 +2,7 @@
 <html>
 <head>
 <title>Chocolate Shop</title>
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background:#fff3ec;color:#4b1c1c}
@@ -10,7 +11,7 @@ nav a{color:white;text-decoration:none;margin:18px;font-size:19px;font-weight:bo
 section{min-height:100vh;padding:50px 25px;text-align:center}
 .login-page{min-height:100vh;display:flex;justify-content:center;align-items:center;background:#f5d7c6}
 .login-box,.card{background:white;padding:25px;border-radius:15px;box-shadow:0 0 10px gray}
-.login-box{width:360px;text-align:center}
+.login-box{width:380px;text-align:center}
 input{width:90%;padding:12px;margin:10px;border-radius:8px;border:1px solid gray}
 button{margin-top:12px;padding:11px 20px;border:none;background:#7b2d26;color:white;border-radius:20px;cursor:pointer}
 .cards{display:flex;flex-wrap:wrap;justify-content:center;gap:25px;margin-top:30px}
@@ -27,11 +28,19 @@ th{background:#7b2d26;color:white}
 footer{background:#3b1c1c;color:white;text-align:center;padding:20px}
 </style>
 </head>
+
 <body>
 
 <div class="login-page" id="loginPage">
   <div class="login-box">
     <h1>🍫 Chocolate Shop</h1><br>
+
+    <h3>User Register</h3>
+    <input type="text" id="regUserName" placeholder="Create username">
+    <input type="password" id="regUserPass" placeholder="Create password">
+    <button onclick="registerUser()">Register</button>
+
+    <br><br><hr><br>
 
     <h3>User Login</h3>
     <input type="text" id="userName" placeholder="User name">
@@ -122,7 +131,7 @@ footer{background:#3b1c1c;color:white;text-align:center;padding:20px}
   <h2>👨‍💼 Admin Dashboard</h2>
   <p>Admin can view pending COD orders.</p>
 
-  <h2 style="margin-top:40px;">Pending Orders</h2>
+  <h2 style="margin-top:40px;">Orders</h2>
   <table>
     <thead>
       <tr>
@@ -139,7 +148,16 @@ footer{background:#3b1c1c;color:white;text-align:center;padding:20px}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  doc,
+  query,
+  where
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAv8lkPyupYSlDh3jr6I61yz7UwRPs1QQ",
@@ -165,31 +183,72 @@ let chocolates = [
 
 let cart = [];
 
-window.userLogin = function(){
-  let name = document.getElementById("userName").value;
-  let pass = document.getElementById("userPass").value;
+window.registerUser = async function(){
+  let name = document.getElementById("regUserName").value.trim();
+  let pass = document.getElementById("regUserPass").value.trim();
 
-  if(name === "user" && pass === "user123"){
+  if(name === "" || pass === ""){
+    alert("Enter username and password");
+    return;
+  }
+
+  let q = query(collection(db,"users"), where("username","==",name));
+  let snap = await getDocs(q);
+
+  if(!snap.empty){
+    alert("Username already exists");
+    return;
+  }
+
+  await addDoc(collection(db,"users"),{
+    username:name,
+    password:pass
+  });
+
+  alert("Registration successful ✅ Now login");
+  document.getElementById("regUserName").value="";
+  document.getElementById("regUserPass").value="";
+}
+
+window.userLogin = async function(){
+  let name = document.getElementById("userName").value.trim();
+  let pass = document.getElementById("userPass").value.trim();
+
+  let q = query(
+    collection(db,"users"),
+    where("username","==",name),
+    where("password","==",pass)
+  );
+
+  let snap = await getDocs(q);
+
+  if(!snap.empty){
     loginPage.style.display="none";
     userPage.style.display="block";
     userNav.style.display="block";
     displayMenu();
-  } else alert("Invalid User Login");
+  } else {
+    alert("Invalid User Login");
+  }
 }
 
 window.adminLogin = async function(){
-  let name = document.getElementById("adminName").value;
-  let pass = document.getElementById("adminPass").value;
+  let name = document.getElementById("adminName").value.trim();
+  let pass = document.getElementById("adminPass").value.trim();
 
   if(name === "admin" && pass === "admin123"){
     loginPage.style.display="none";
     adminPage.style.display="block";
     adminNav.style.display="block";
     await displayOrders();
-  } else alert("Invalid Admin Login");
+  } else {
+    alert("Invalid Admin Login");
+  }
 }
 
-window.logout = function(){ location.reload(); }
+window.logout = function(){
+  location.reload();
+}
 
 function displayMenu(){
   let menu = document.getElementById("menuCards");
@@ -271,9 +330,9 @@ window.placeOrder = async function(){
     return;
   }
 
-  let cname = document.getElementById("customerName").value;
-  let phone = document.getElementById("customerPhone").value;
-  let address = document.getElementById("customerAddress").value;
+  let cname = document.getElementById("customerName").value.trim();
+  let phone = document.getElementById("customerPhone").value.trim();
+  let address = document.getElementById("customerAddress").value.trim();
 
   if(cname === "" || phone === "" || address === ""){
     alert("Please enter name, phone and address");
@@ -321,7 +380,10 @@ async function displayOrders(){
 
   querySnapshot.forEach((orderDoc)=>{
     let order = orderDoc.data();
-    if(order.status === "Pending") count++;
+
+    if(order.status === "Pending"){
+      count++;
+    }
 
     let itemText = order.items.map(i => `${i.name}(${i.qty})`).join(", ");
 
@@ -347,6 +409,7 @@ window.markDelivered = async function(id){
   await updateDoc(doc(db,"orders",id),{
     status:"Delivered"
   });
+
   alert("Order marked as Delivered");
   displayOrders();
 }
