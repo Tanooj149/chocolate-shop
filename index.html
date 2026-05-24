@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chocolate Shop</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#fff3ec;color:#4b1c1c}
+nav{background:#4b1c1c;padding:18px;text-align:center;display:none}
+nav a{color:white;text-decoration:none;margin:18px;font-size:19px;font-weight:bold}
+section{min-height:100vh;padding:50px 25px;text-align:center}
+.login-page{min-height:100vh;display:flex;justify-content:center;align-items:center;background:#f5d7c6}
+.login-box,.card{background:white;padding:25px;border-radius:15px;box-shadow:0 0 10px gray}
+.login-box{width:360px;text-align:center}
+input{width:90%;padding:12px;margin:10px;border-radius:8px;border:1px solid gray}
+button{margin-top:12px;padding:11px 20px;border:none;background:#7b2d26;color:white;border-radius:20px;cursor:pointer}
+.cards{display:flex;flex-wrap:wrap;justify-content:center;gap:25px;margin-top:30px}
+.card{width:290px}
+.card h3{color:#7b2d26;margin-bottom:15px}
+.price{line-height:32px;font-size:18px}
+table{margin:25px auto;border-collapse:collapse;background:white;width:95%}
+th,td{border:1px solid #7b2d26;padding:10px}
+th{background:#7b2d26;color:white}
+#home{background:url('https://images.unsplash.com/photo-1511381939415-e44015466834');background-size:cover;background-position:center;color:white;display:flex;flex-direction:column;justify-content:center;align-items:center}
+#home h1{font-size:50px;background:#0009;padding:20px;border-radius:15px}
+#home p{font-size:24px;background:#0008;margin-top:20px;padding:12px;border-radius:10px}
+#userPage,#adminPage{display:none}
+footer{background:#3b1c1c;color:white;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+
+<div class="login-page" id="loginPage">
+  <div class="login-box">
+    <h1>🍫 Chocolate Shop</h1><br>
+
+    <h3>User Login</h3>
+    <input type="text" id="userName" placeholder="User name">
+    <input type="password" id="userPass" placeholder="User password">
+    <button onclick="userLogin()">User Login</button>
+
+    <br><br><hr><br>
+
+    <h3>Admin Login</h3>
+    <input type="text" id="adminName" placeholder="Admin name">
+    <input type="password" id="adminPass" placeholder="Admin password">
+    <button onclick="adminLogin()">Admin Login</button>
+  </div>
+</div>
+
+<nav id="userNav">
+  <a href="#home">Home</a>
+  <a href="#menu">Menu</a>
+  <a href="#cart">Cart/Bill</a>
+  <a href="#about">About</a>
+  <a href="#contact">Contact</a>
+  <a href="#" onclick="logout()">Logout</a>
+</nav>
+
+<div id="userPage">
+
+<section id="home">
+  <h1>🍫 HOME MADE CHOCOLATES 🍫</h1>
+  <p>Fresh homemade chocolates made with love ❤️</p>
+</section>
+
+<section id="menu">
+  <h2>🍫 Chocolate Menu</h2>
+  <div class="cards" id="menuCards"></div>
+</section>
+
+<section id="cart">
+  <h2>🛒 Cart & Final Bill</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Chocolate</th><th>Qty</th><th>Price</th><th>Total</th>
+      </tr>
+    </thead>
+    <tbody id="cartBody">
+      <tr><td colspan="4">No items added</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="grandTotal">Grand Total: ₹0</h2>
+  <h3>Payment Method: Cash on Delivery</h3>
+
+  <input type="text" id="customerName" placeholder="Enter your name">
+  <input type="text" id="customerPhone" placeholder="Enter phone number">
+  <input type="text" id="customerAddress" placeholder="Enter delivery address">
+
+  <br>
+  <button onclick="placeOrder()">Place Order</button>
+  <button onclick="clearCart()">Clear Cart</button>
+</section>
+
+<section id="about">
+  <h2>About Us</h2>
+  <p style="font-size:23px;line-height:42px;width:80%;margin:auto;">
+    We prepare fresh homemade chocolates using premium ingredients.
+    Customized chocolates are available for birthdays, weddings and special occasions.
+  </p>
+</section>
+
+<section id="contact">
+  <h2>Contact Information</h2>
+  <p style="font-size:24px;line-height:50px;">📞 Phone: 9876543210</p>
+  <p style="font-size:24px;line-height:50px;">📧 Email: homemadechoco@gmail.com</p>
+  <p style="font-size:24px;line-height:50px;">📍 Location: Hyderabad</p>
+</section>
+
+<footer>© 2026 Home Made Chocolates</footer>
+</div>
+
+<nav id="adminNav">
+  <a href="#adminDashboard">Admin Dashboard</a>
+  <a href="#" onclick="logout()">Logout</a>
+</nav>
+
+<div id="adminPage">
+<section id="adminDashboard">
+  <h2>👨‍💼 Admin Dashboard</h2>
+  <p>Admin can view pending COD orders.</p>
+
+  <h2 style="margin-top:40px;">Pending Orders</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Customer</th><th>Phone</th><th>Address</th><th>Items</th>
+        <th>Total</th><th>Payment</th><th>Status</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="ordersBody">
+      <tr><td colspan="8">No orders</td></tr>
+    </tbody>
+  </table>
+</section>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAv8lkPyupYSlDh3jr6I61yz7UwRPs1QQ",
+  authDomain: "chocolate-shop-7194e.firebaseapp.com",
+  projectId: "chocolate-shop-7194e",
+  storageBucket: "chocolate-shop-7194e.firebasestorage.app",
+  messagingSenderId: "16226474265",
+  appId: "1:16226474265:web:68e8f37dd24984bc6c0d88",
+  measurementId: "G-Y5ZJ81E2YY"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let chocolates = [
+  {name:"Kunafa Chocolate", price:250, stock:10, details:"Big Bar ₹250 | Small ₹150 | Bytes ₹10"},
+  {name:"Dry Fruit Chocolate", price:150, stock:12, details:"Big Bar ₹150 | Small ₹75 | Bytes ₹5"},
+  {name:"Oreo Crunchy Chocolate", price:95, stock:15, details:"Big Bar ₹95 | Small ₹55 | Bytes ₹5"},
+  {name:"Dark Chocolate", price:70, stock:20, details:"Big Bar ₹70 | Small ₹55 | Bytes ₹5"},
+  {name:"Milk Chocolate", price:80, stock:18, details:"Big Bar ₹80 | Small ₹40"},
+  {name:"White Chocolate", price:80, stock:14, details:"Big Bar ₹80 | Small ₹40"}
+];
+
+let cart = [];
+
+window.userLogin = function(){
+  let name = document.getElementById("userName").value;
+  let pass = document.getElementById("userPass").value;
+
+  if(name === "user" && pass === "user123"){
+    loginPage.style.display="none";
+    userPage.style.display="block";
+    userNav.style.display="block";
+    displayMenu();
+  } else alert("Invalid User Login");
+}
+
+window.adminLogin = async function(){
+  let name = document.getElementById("adminName").value;
+  let pass = document.getElementById("adminPass").value;
+
+  if(name === "admin" && pass === "admin123"){
+    loginPage.style.display="none";
+    adminPage.style.display="block";
+    adminNav.style.display="block";
+    await displayOrders();
+  } else alert("Invalid Admin Login");
+}
+
+window.logout = function(){ location.reload(); }
+
+function displayMenu(){
+  let menu = document.getElementById("menuCards");
+  menu.innerHTML = "";
+
+  chocolates.forEach((choco,index)=>{
+    menu.innerHTML += `
+    <div class="card">
+      <h3>${choco.name}</h3>
+      <div class="price">
+        ${choco.details}<br>
+        Price: ₹${choco.price}<br>
+        Stock: <b style="color:green">${choco.stock}</b>
+      </div>
+      <button onclick="addToCart(${index})">Add to Cart</button>
+    </div>`;
+  });
+}
+
+window.addToCart = function(index){
+  let qty = parseInt(prompt("Enter quantity:"));
+
+  if(isNaN(qty) || qty <= 0){
+    alert("Enter valid quantity");
+    return;
+  }
+
+  if(qty > chocolates[index].stock){
+    alert("Only " + chocolates[index].stock + " stock available");
+    return;
+  }
+
+  chocolates[index].stock -= qty;
+
+  let existing = cart.find(item => item.name === chocolates[index].name);
+
+  if(existing){
+    existing.qty += qty;
+    existing.total = existing.qty * existing.price;
+  } else {
+    cart.push({
+      name: chocolates[index].name,
+      qty: qty,
+      price: chocolates[index].price,
+      total: qty * chocolates[index].price
+    });
+  }
+
+  displayMenu();
+  displayCart();
+}
+
+function displayCart(){
+  let body = document.getElementById("cartBody");
+  let grand = 0;
+  body.innerHTML = "";
+
+  if(cart.length === 0){
+    body.innerHTML = `<tr><td colspan="4">No items added</td></tr>`;
+  }
+
+  cart.forEach(item=>{
+    grand += item.total;
+    body.innerHTML += `
+    <tr>
+      <td>${item.name}</td>
+      <td>${item.qty}</td>
+      <td>₹${item.price}</td>
+      <td>₹${item.total}</td>
+    </tr>`;
+  });
+
+  document.getElementById("grandTotal").innerHTML = "Grand Total: ₹" + grand;
+}
+
+window.placeOrder = async function(){
+  if(cart.length === 0){
+    alert("Cart is empty");
+    return;
+  }
+
+  let cname = document.getElementById("customerName").value;
+  let phone = document.getElementById("customerPhone").value;
+  let address = document.getElementById("customerAddress").value;
+
+  if(cname === "" || phone === "" || address === ""){
+    alert("Please enter name, phone and address");
+    return;
+  }
+
+  let grand = cart.reduce((sum,item)=>sum + item.total,0);
+
+  await addDoc(collection(db,"orders"),{
+    customer:cname,
+    phone:phone,
+    address:address,
+    items:cart,
+    total:grand,
+    payment:"Cash on Delivery",
+    status:"Pending",
+    createdAt:new Date().toLocaleString()
+  });
+
+  alert("🍫 Order placed successfully!\nPayment: Cash on Delivery\nGrand Total: ₹" + grand + "\nStatus: Pending");
+
+  cart = [];
+  displayCart();
+  document.getElementById("customerName").value="";
+  document.getElementById("customerPhone").value="";
+  document.getElementById("customerAddress").value="";
+}
+
+window.clearCart = function(){
+  cart = [];
+  displayCart();
+}
+
+async function displayOrders(){
+  let body = document.getElementById("ordersBody");
+  body.innerHTML = "";
+  let count = 0;
+
+  const querySnapshot = await getDocs(collection(db,"orders"));
+
+  if(querySnapshot.empty){
+    body.innerHTML = `<tr><td colspan="8">No orders</td></tr>`;
+    return;
+  }
+
+  querySnapshot.forEach((orderDoc)=>{
+    let order = orderDoc.data();
+    if(order.status === "Pending") count++;
+
+    let itemText = order.items.map(i => `${i.name}(${i.qty})`).join(", ");
+
+    body.innerHTML += `
+    <tr>
+      <td>${order.customer}</td>
+      <td>${order.phone}</td>
+      <td>${order.address}</td>
+      <td>${itemText}</td>
+      <td>₹${order.total}</td>
+      <td>${order.payment}</td>
+      <td>${order.status}</td>
+      <td><button onclick="markDelivered('${orderDoc.id}')">Delivered</button></td>
+    </tr>`;
+  });
+
+  if(count > 0){
+    alert("🔔 Admin Alert: " + count + " pending Cash on Delivery order(s)");
+  }
+}
+
+window.markDelivered = async function(id){
+  await updateDoc(doc(db,"orders",id),{
+    status:"Delivered"
+  });
+  alert("Order marked as Delivered");
+  displayOrders();
+}
+</script>
+
+</body>
+</html>
